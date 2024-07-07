@@ -1,21 +1,43 @@
-import Image from "next/image";
-function Stories() {
+import prisma from "@/lib/client";
+import { auth } from "@clerk/nextjs/server";
+import StoryList from "./story-list";
+
+const Stories = async () => {
+  const { userId: currentUserId } = auth();
+
+  if (!currentUserId) return null;
+
+  const stories = await prisma.story.findMany({
+    where: {
+      expiresAt: {
+        gt: new Date(),
+      },
+      OR: [
+        {
+          user: {
+            followers: {
+              some: {
+                followerId: currentUserId,
+              },
+            },
+          },
+        },
+        {
+          userId: currentUserId,
+        },
+      ],
+    },
+    include: {
+      user: true,
+    },
+  });
   return (
-    <div className="p-4 ng-white rounded-lg shadow-md overflow-scroll text-xs scrollbar-hide">
+    <div className="p-4 bg-white rounded-lg shadow-md overflow-scroll text-xs scrollbar-hide">
       <div className="flex gap-8 w-max">
-        <div className="flex flex-col items-center gap-2 cursor-pointer">
-          <Image
-            width={80}
-            height={80}
-            src="https://images.pexels.com/photos/25853709/pexels-photo-25853709.jpeg?auto=compress&cs=tinysrgb&w=800&lazy=load"
-            alt="avatar"
-            className="w-20 h-20 rounded-full ring-2"
-          />
-          <span className="font-medium">Name</span>
-        </div>
+        <StoryList stories={stories} userId={currentUserId} />
       </div>
     </div>
   );
-}
+};
 
 export default Stories;
